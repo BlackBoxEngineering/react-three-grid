@@ -74,7 +74,7 @@ export const gridToArray = (_gridPositionX, _gridPositionY, _gridSize) => {
 };
 
 export const isArrayMatch = (array1, array2) => {
-	const checkArrays = (array1.length == array2.length) && array1.every(function (element, index) {
+	const checkArrays = (array1.length === array2.length) && array1.every(function (element, index) {
 		return element === array2[index];
 	});
 	return checkArrays;
@@ -467,7 +467,6 @@ export const animateSpriteControl = (_sprite, _mazeArray, _gridSize, _spriteVelo
 					let calculateNormals = calculateImpactsNormal(_sprite, _spriteVelocity, nextSpritePositionPrecise);
 					let impactingNormal = calculateNormals[0];
 					let impactingPosition = calculateNormals[2];
-					let adjustedPosition = calculateNormals[3];
 					const gridMin = -5.5; const gridMax = 5.5;
 					let targetPointX = impactingPosition[0] < gridMin ? -5.499 : impactingPosition[0] > gridMax ? 5.499 : impactingPosition[0];
 					let targetPointY = impactingPosition[1] < gridMin ? -5.499 : impactingPosition[1] > gridMax ? 5.499 : impactingPosition[1];
