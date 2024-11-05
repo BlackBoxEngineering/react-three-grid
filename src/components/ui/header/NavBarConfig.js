@@ -1,5 +1,5 @@
-export const navBarHeaders = [ "Home", "GridArray" ];
-export const navBarHeaderPages = [ "/", "/gridarray" ];
+export const navBarHeaders = [ "Home" ];
+export const navBarHeaderPages = [ "/" ];
 export const navBarMenuTextContainerClass = "invisible md:visible w-full flex justify-end";
 export const navBarMenuTextClass = "cursor-pointer pl-2 mt-3 mr-2 bbmNavTextLink";
 export const navMobileClosedBtnContainerClass = "absolute bbmNavTextHeader top-6 right-5 items-center justify-center";

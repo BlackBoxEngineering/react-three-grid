@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { iniGridArrayScene, scenePause, sysPause } from '../scripts/gridArrayWithThreeJS';
 
-function GridArrayWithThreeJS() {
+function MeabhsMaze() {
   const mountRef = useRef(null);
   const [ loaded, setLoaded ] = useState(false);
   const [ btnmsg, setbtnmsg ] = useState("Unpause");
@@ -11,7 +11,7 @@ function GridArrayWithThreeJS() {
       iniGridArrayScene(mountRef);
       setLoaded(true);
     }
-  }, []);
+  }, [loaded]);
   
   const togglePauseGrid = () => {
     if ( sysPause ){
@@ -33,4 +33,4 @@ function GridArrayWithThreeJS() {
   );
 }
 
-export default GridArrayWithThreeJS;
+export default MeabhsMaze;

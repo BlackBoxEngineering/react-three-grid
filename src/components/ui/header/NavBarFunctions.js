@@ -10,7 +10,7 @@ export const navBarMenuLogoLink = (
     <NavLink to="/">
         <div className="flex flex-wrap">
             {/* <div className="logo"/> */}
-            <div className="ml-2 bbmNavTextHeader text-left text-[2.0em]">BlackBoxDoodle</div>
+            <div className="ml-2 bbmNavTextHeader text-left text-[2.0em]">Méabhs Maze</div>
         </div>
     </NavLink>
 )
