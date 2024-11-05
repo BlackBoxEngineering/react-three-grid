@@ -1,0 +1,10 @@
+export const navBarHeaders = [ "Home", "GridArray" ];
+export const navBarHeaderPages = [ "/", "/gridarray" ];
+export const navBarMenuTextContainerClass = "invisible md:visible w-full flex justify-end";
+export const navBarMenuTextClass = "cursor-pointer pl-2 mt-3 mr-2 bbmNavTextLink";
+export const navMobileClosedBtnContainerClass = "absolute bbmNavTextHeader top-6 right-5 items-center justify-center";
+export const navMobileClosedBtnClass = "bbmNavTextHeader md:hidden cursor-pointer mt-[0.28em]";
+export const navMobileModalOpenedClass = "md:hidden list-none w-max h-screen bbmNavTextHeader bbmsidebar ";
+export const navMobileOpenBtnContainerClass = "grid w-full text-xl text-left mt-8 ml-2";
+export const navMobileOpenBtnClass = "bbmNavTextHeader cursor-pointer";
+export const navMobileIconSize = 28;

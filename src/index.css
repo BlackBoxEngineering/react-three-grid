@@ -1,0 +1,74 @@
+:root{
+  --bbm-color-background: rgb(0, 0, 0);
+  --bbm-color-foreground: rgb(13, 29, 32);
+  --bbm-color-border: rgb(255,226,87);
+  --bbm-color-border-light: rgb(255, 240, 151);
+  --bbm-color-text: rgb(255,226,87);
+  --bbm-color-text-light: rgb(255, 240, 151);
+  --bbm-color-headers: rgb(255,226,87);
+  --bbm-color-headers-light: rgb(255, 240, 151);
+  --bbm-color-headers-dark: rgb(17, 78, 97);
+  --bbm-color-button-bg: rgb(2, 8, 20);
+  --bbm-color-button-bg-light: rgb(24, 42, 80);
+
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* Ensure starting from the top */
+    height: 100vh;
+    margin: 0;
+    background: var(--bbm-color-background);
+  }
+}
+
+.bbmnavbar{
+  position: fixed;
+  top: 0;
+  left:0;
+  right:0;
+  z-index: 10;
+  border-top: 8px solid var(--bbm-color-border);
+}
+
+.bbmsidebar{
+  position: fixed;
+  top: 0;
+  right: 0;
+  background: var(--bbm-color-foreground);
+  border-top: 8px solid var(--bbm-color-border);
+  border-left: 8px solid var(--bbm-color-border);
+  z-index: 50;
+}
+.bbmNavText{
+  color:var(--bbm-color-text);
+  font-family: monospace, monospace;
+  text-shadow: 1px 1px 2px black, 0 0 25px var(--bbm-color-3), 0 0 5px var(--bbm-color-2);
+}
+.bbmNavTextLight{
+  color:var(--bbm-color-text-light);
+  font-family: monospace, monospace;
+  text-shadow: 1px 1px 2px black, 0 0 25px var(--bbm-color-4), 0 0 5px var(--bbm-color-3);
+}
+.bbmNavTextHeader {
+  color: var(--bbm-color-headers);
+  letter-spacing: 1px;
+  font-family: monospace, monospace;
+  text-shadow: 2px 2px 4px black, 0 0 5px var(--bbm-color-headers-light);
+}
+.bbmText {@apply text-[var(--bbm-color-text)];}
+.bbmText:hover {@apply text-[var(--bbm-color-text-light)];}
+.bbmText:focus {@apply text-[var(--bbm-color-text-light)];}
+.bbmNavTextLink {@apply bbmNavText;}
+.bbmNavTextLink:hover {@apply bbmNavTextLight;}
+.bbmNavTextHeader:hover {@apply text-[var(--bbm-color-headers-light)];}
+
+.bbmBtn {@apply rounded bg-[var(--bbm-color-button-bg)] px-4 py-0 border-2 border-[var(--bbm-color-border)] font-bold text-[var(--bbm-color-text)] -mt-[0.12em];}
+.bbmBtn:hover {@apply bg-[var(--bbm-color-button-bg-light)] border-2 border-[var(--bbm-color-border-light)] text-[var(bbm-color-text-light)];}
+.bbmBtn:focus {@apply bg-[var(--bbm-color-button-bg-light)] text-[var(--bbm-color-text)];}
+
+.bbmThreeScene { position: relative; }
+.pauseBtn { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 1; }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
