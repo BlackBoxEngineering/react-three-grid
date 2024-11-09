@@ -14,7 +14,7 @@ export const halfGrid = Math.floor(mazeGridSize * 0.5);
 
 export const spriteVelocityMultiplier = 0.1;
 export const spriteVelocityDamper = 1;
-export const spriteInitialAngle = 33;
+export const spriteInitialAngle = 130;
 export const spriteInitialRadians = spriteInitialAngle * (Math.PI / 180);
 export const spriteSweeperIncrement = spriteVelocityMultiplier * 0.001;
 
@@ -156,7 +156,7 @@ export const createHelperArrow = (_spritePosX, _spritePosZ) => {
 export const createGridHelper = () =>{
 	const normalColour = new THREE.Color(0x00ffff);
 	const gridHelper = new THREE.GridHelper(mazeGridSize, mazeGridSize, normalColour);
-	gridHelper.material = new THREE.LineBasicMaterial({ color: normalColour, linewidth: 2,emissive: normalColour });
+	gridHelper.material = new THREE.LineBasicMaterial({ color: normalColour, linewidth: 2});
 	return gridHelper;
 }
 
@@ -192,7 +192,7 @@ export const createMazeArrayLabels = (_gridSize) => {
 
 export const createSelectionHighlighter = () => {
 	const geometry = new THREE.BoxGeometry(1, 0.01, 1);
-	const material = new THREE.MeshBasicMaterial({ color: 0x668cff, opacity: 0.8, transparent: true, emissive:0x00ffff  });
+	const material = new THREE.MeshBasicMaterial({ color: 0x668cff, opacity: 0.8, transparent: true });
 	const marker = new THREE.Mesh(geometry, material);
 	scene.add(marker);
 	return marker;
@@ -289,8 +289,8 @@ export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePosi
 	let normalNorthEast = 315;
 	let normalSouthWest = 135;
 	let normalSouthEast = 225;
-	const boundaryLimitMin = -halfGrid - 0.4; 
-	const boundaryLimitMax = halfGrid + 0.4;
+	const boundaryLimitMin = -halfGrid; 
+	const boundaryLimitMax = halfGrid;
 	const exactPosition = [_sprite.position.x, _sprite.position.z];
 	const impactPosition = [_nextSpritePositionPrecise[0], _nextSpritePositionPrecise[1]];
 	let XPosDecimalExact = Number(Number(exactPosition[0]).toFixed(3));
@@ -432,12 +432,20 @@ export const calculateSpritesNextPosition = (_sprite, _spriteVelocity, _gridSize
 	return [predictedGrid, predictedArray, nextPrecise, currentDirection];
 };
 
-export const checkSpritesNextPosition = (_mazeArray, _arrayPosition, _gridSize) => {
+export const checkSpritesNextPosition = (_mazeArray, _arrayPosition, _spriteVelocity) => {
+	let currentDirection = returnSpriteDirection(_spriteVelocity);
 	const mazeArrayX = _arrayPosition[0];
 	const mazeArrayY = _arrayPosition[1];
-	if ((mazeArrayX >= 0 && mazeArrayX < _gridSize) && (mazeArrayY >= 0 && mazeArrayY < _gridSize)) {
-		if (!_mazeArray[mazeArrayX][mazeArrayY]) {return true;} else {return false;}
-	} else {return false;}
+	if ((mazeArrayX >= 0 && mazeArrayX < mazeGridSize) && (mazeArrayY >= 0 && mazeArrayY < mazeGridSize)) {
+		if (_mazeArray[mazeArrayX][mazeArrayY]) {console.log("Occupied"); return false;}else{
+		if ((mazeArrayX > 0 && mazeArrayX < mazeGridSize-1) && (mazeArrayY >= 0 && mazeArrayY < mazeGridSize-1)) {
+			if (_mazeArray[mazeArrayX][mazeArrayY-1] && _mazeArray[mazeArrayX-1][mazeArrayY] && currentDirection === 45) {return false;}
+			if (_mazeArray[mazeArrayX][mazeArrayY-1] && _mazeArray[mazeArrayX+1][mazeArrayY] && currentDirection === 135) {return false;}
+			if (_mazeArray[mazeArrayX][mazeArrayY+1] && _mazeArray[mazeArrayX+1][mazeArrayY] && currentDirection === 225) {return false;}
+			if (_mazeArray[mazeArrayX][mazeArrayY+1] && _mazeArray[mazeArrayX-1][mazeArrayY] && currentDirection === 315) {return false;}
+		}}
+		return true;
+	} else {console.log("Off Grid");return false;}
 };
 
 export const animateSpriteControl = (_sprite, _mazeArray, _gridSize, _spriteVelocity, _velocityMultiplier, _velocityDamper) => {
@@ -455,7 +463,7 @@ export const animateSpriteControl = (_sprite, _mazeArray, _gridSize, _spriteVelo
 			nextSpritePosition = calculateSpritesNextPosition(_sprite, _spriteVelocity, _gridSize, curSpritePositionPrecise);
 			nextSpritePositionPrecise = nextSpritePosition[2];
 			nextSpritePositionArray = nextSpritePosition[1];
-			nextSpritePositionStatus = checkSpritesNextPosition(_mazeArray, nextSpritePositionArray, _gridSize);
+			nextSpritePositionStatus = checkSpritesNextPosition(_mazeArray, nextSpritePositionArray, _spriteVelocity);
 			let isLastSpritePosCurSpritePos = isArrayMatch(lastSpritePositionArray, curSpritePositionArray);
 			if (!isLastSpritePosCurSpritePos && nextSpritePositionStatus) {
 				lastSpritePositionArray = curSpritePositionArray;
@@ -471,13 +479,7 @@ export const animateSpriteControl = (_sprite, _mazeArray, _gridSize, _spriteVelo
 					let targetPointX = impactingPosition[0] < gridMin ? -5.499 : impactingPosition[0] > gridMax ? 5.499 : impactingPosition[0];
 					let targetPointY = impactingPosition[1] < gridMin ? -5.499 : impactingPosition[1] > gridMax ? 5.499 : impactingPosition[1];
 					let distanceToImpact = _sprite.position.distanceTo(new THREE.Vector3(targetPointX, _sprite.position.y, targetPointY));
-					let spriteVelocityMultiplier = _velocityMultiplier;
-					const cornerNormals = [45, 135, 225, 315];
-					spriteVelocityMultiplier*=2;
-					if (cornerNormals.includes(calculateNormals[0])) {
-						spriteVelocityMultiplier *= 3;
-					}
-					if (distanceToImpact >= spriteVelocityMultiplier) {
+					if (distanceToImpact >= _velocityMultiplier) {
 						updateSpriteLabel(_sprite,_gridSize);
 						_sprite.position.add(_spriteVelocity);
 						_spriteVelocity.multiplyScalar(_velocityDamper);
