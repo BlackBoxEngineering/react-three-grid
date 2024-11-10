@@ -3,24 +3,45 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import blackBoxNeonTexture from '../../images/blackBoxNeon.png';
 import blackBoxEyeTexture from '../../images/blackBoxEye.png';
 
+// Tools from THREE Library
 export const scene = new THREE.Scene();
 export const sceneRaycaster = new THREE.Raycaster();
 export const userController = new THREE.Vector2();
 export const textureLoader = new THREE.TextureLoader();
 export const sceneCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+
+// Grid Variables
 export const mazeGridSize = 11;
 export const halfGrid = Math.floor(mazeGridSize * 0.5);
+export const gridMin = -5.5; 
+export const gridMax = 5.5;
+
+// Sprite Velocity and damper (no damping 1)
+// 0.1
 export const spriteVelocityMultiplier = 0.1;
 export const spriteVelocityDamper = 1;
+
+// Sprite diam and ini direction
+export const spriteDiameter = 0.5;
 export const spriteInitialAngle = 45;
 export const spriteInitialRadians = spriteInitialAngle * (Math.PI / 180);
+
+// This increment is the distance between path checks
+// Needs looked at as it can miss when skewing cells
 export const spriteSweeperIncrement = 0.0001;
+
+// DistanceToImapactOffset (To include angle yet)
+// Side imapacting and glancing from corners also to add
+export const distanceToImpactOffset = 0.05 + (spriteDiameter * 0.5);
+
 export let mazeGridFloor = undefined;
 export let mazeArray = undefined;
 export let selectionHighlighter = undefined;
 export let sysPause = true;
+
 export const scenePause = (_pausedState) => { sysPause = _pausedState; };
 
+// Should not be using listeners in react (To change)
 export const sceneLoadListeners = () => {
 	window.addEventListener('mousemove', (event) => {
 		userController.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -206,7 +227,7 @@ export const updateSelectionHighlighter = (_gridSize) => {
 };
 
 export const createSprite = (_spritePosX, _spritePosZ) => {
-	const spriteGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+	const spriteGeometry = new THREE.SphereGeometry(spriteDiameter*0.5, 16, 16);
 	const spriteTexture = textureLoader.load(blackBoxEyeTexture, (textureForSprite) => {
 		textureForSprite.wrapS = THREE.RepeatWrapping;
 		textureForSprite.wrapT = THREE.RepeatWrapping;
@@ -250,7 +271,7 @@ export const updateSpriteLabel = (_sprite, _gridSize) => {
 	const spriteLabel = _sprite.getObjectByName("gridPositon");
 	let arrayPosition = gridToArray(_sprite.position.x, _sprite.position.z, _gridSize);
 	let gridPosition = arrayToGrid(arrayPosition[0], arrayPosition[1], _gridSize);
-	if (spriteLabel) { spriteLabel.updateText(`(${gridPosition[0]},${gridPosition[1]})`); }
+	if (spriteLabel) { spriteLabel.updateText(`(${arrayPosition[0]},${arrayPosition[1]})`); }
 };
 
 export const returnSpritePosition = (_sprite, _gridSize) => {
@@ -264,7 +285,7 @@ export const returnSpritePosition = (_sprite, _gridSize) => {
 export const returnSpriteDirection = (_spriteVelocity) => {
 	let fromRads = Math.atan2(_spriteVelocity.z, _spriteVelocity.x) * (180 / Math.PI);
 	let toDegrees = fromRads < 0 ? 360 + fromRads : fromRads;
-	return Math.round(toDegrees);
+	return toDegrees;
 };
 
 export const returnDirectionFromCoords = (_startCoord, _endCoord) => {
@@ -275,115 +296,6 @@ export const returnDirectionFromCoords = (_startCoord, _endCoord) => {
 	return within360;
 };
 
-export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePositionPrecise) => {
-	let normalAngle = null;
-	let normalWest = 0; let normalEast = 180; let normalSouth = 90; let normalNorth = 270;
-	let normalNorthWest = 45; let normalNorthEast = 315; let normalSouthWest = 135; let normalSouthEast = 225;
-	const boundaryLimitMin = -halfGrid; const boundaryLimitMax = halfGrid;
-	const exactPosition = [_sprite.position.x, _sprite.position.z];
-	const impactPosition = [_nextSpritePositionPrecise[0], _nextSpritePositionPrecise[1]];
-	let XPosDecimalExact = Number(Number(exactPosition[0]).toFixed(3));
-	let YPosDecimalExact = Number(Number(exactPosition[1]).toFixed(3));
-	let XPosDecimalImpact = Number(Number(impactPosition[0]).toFixed(3));
-	let YPosDecimalImpact = Number(Number(impactPosition[1]).toFixed(3));
-	if (XPosDecimalImpact >= boundaryLimitMax) { normalAngle = normalWest; }
-	if (XPosDecimalImpact <= boundaryLimitMin) { normalAngle = normalEast; }
-	if (YPosDecimalImpact >= boundaryLimitMax) { normalAngle = normalNorth; }
-	if (YPosDecimalImpact <= boundaryLimitMin) { normalAngle = normalSouth; }
-	if (XPosDecimalImpact >= boundaryLimitMax && YPosDecimalImpact >= boundaryLimitMax) { normalAngle = normalNorthWest; } // SE
-	if (XPosDecimalImpact <= boundaryLimitMin && YPosDecimalImpact <= boundaryLimitMin) { normalAngle = normalSouthEast; } // NW
-	if (XPosDecimalImpact >= boundaryLimitMax && YPosDecimalImpact <= boundaryLimitMin) { normalAngle = normalNorthEast; } // NE
-	if (XPosDecimalImpact <= boundaryLimitMin && YPosDecimalImpact >= boundaryLimitMax) { normalAngle = normalSouthWest; } // SW
-	let blockedCellArray = gridToArray(XPosDecimalImpact, YPosDecimalImpact, mazeGridSize);
-	let blockedCellGrid = arrayToGrid(blockedCellArray[0], blockedCellArray[1], mazeGridSize);
-	let posDecimalImpact = [XPosDecimalImpact, YPosDecimalImpact];
-	let posDecimalExact = [XPosDecimalExact, YPosDecimalExact];
-	let adjustedCellImpactPos = undefined;
-	if (normalAngle === null) {
-		const getDirection = returnDirectionFromCoords(posDecimalExact, posDecimalImpact);
-		let cellImpactPosX = (posDecimalImpact[0] - blockedCellGrid[0]).toString();
-		let cellImpactPosY = (posDecimalImpact[1] - blockedCellGrid[1]).toString();
-		cellImpactPosX = cellImpactPosX > 0 ? cellImpactPosX.slice(0, 4) : cellImpactPosX.slice(0, 5);
-		cellImpactPosY = cellImpactPosY > 0 ? cellImpactPosY.slice(0, 4) : cellImpactPosY.slice(0, 5);
-		cellImpactPosX = Number(cellImpactPosX); cellImpactPosY = Number(cellImpactPosY);
-		adjustedCellImpactPos = [cellImpactPosX, cellImpactPosY];
-		if (getDirection >= 0 && getDirection < 91) {
-			const northFaceDist = 0.5 + cellImpactPosY;
-			const westFaceDist = 0.5 + cellImpactPosX;
-			if (northFaceDist === westFaceDist) {
-				const checkOneCellNorth = checkSpritesNextPosition(mazeArray, [blockedCellArray[0], blockedCellArray[1] - 1], mazeGridSize);
-				const checkOneCellWest = checkSpritesNextPosition(mazeArray, [blockedCellArray[0] - 1, blockedCellArray[1]], mazeGridSize);
-				if (!checkOneCellNorth && checkOneCellWest) {
-					normalAngle = normalWest;
-				} else if (checkOneCellNorth && !checkOneCellWest) {
-					normalAngle = normalNorth;
-				} else {
-					normalAngle = normalNorthWest;
-				}
-			} else if (northFaceDist < westFaceDist) {
-				normalAngle = normalNorth;
-			} else {
-				normalAngle = normalWest;
-			}
-		} else if (getDirection >= 90 && getDirection < 181) {
-			const northFaceDist = 0.5 + cellImpactPosY;
-			const eastFaceDist = 0.5 - cellImpactPosX;
-			if (northFaceDist === eastFaceDist) {
-				const checkOneCellNorth = checkSpritesNextPosition(mazeArray, [blockedCellArray[0], blockedCellArray[1] - 1], mazeGridSize);
-				const checkOneCellEast = checkSpritesNextPosition(mazeArray, [blockedCellArray[0] + 1, blockedCellArray[1]], mazeGridSize);
-				if (!checkOneCellNorth && checkOneCellEast) {
-					normalAngle = normalEast;
-				} else if (checkOneCellNorth && !checkOneCellEast) {
-					normalAngle = normalNorth;
-				} else {
-					normalAngle = normalNorthEast;
-				}
-			} else if (northFaceDist < eastFaceDist) {
-				normalAngle = normalNorth;
-			} else {
-				normalAngle = normalEast;
-			}
-		} else if (getDirection >= normalWest && getDirection < 271) {
-			const southFaceDist = 0.5 - cellImpactPosY;
-			const eastFaceDist = 0.5 - cellImpactPosX;
-			if (southFaceDist === eastFaceDist) {
-				const checkOneCellSouth = checkSpritesNextPosition(mazeArray, [blockedCellArray[0], blockedCellArray[1] + 1], mazeGridSize);
-				const checkOneCellEast = checkSpritesNextPosition(mazeArray, [blockedCellArray[0] + 1, blockedCellArray[1]], mazeGridSize);
-				if (!checkOneCellSouth && checkOneCellEast) {
-					normalAngle = normalEast;
-				} else if (checkOneCellSouth && !checkOneCellEast) {
-					normalAngle = normalSouth;
-				} else {
-					normalAngle = normalSouthEast;
-				}
-			} else if (southFaceDist < eastFaceDist) {
-				normalAngle = normalSouth;
-			} else {
-				normalAngle = normalEast;
-			}
-		} else if (getDirection >= 270 && getDirection < 361) {
-			const southFaceDist = 0.5 - cellImpactPosY;
-			const westFaceDist = 0.5 + cellImpactPosX;
-			if (southFaceDist === westFaceDist) {
-				const checkOneCellSouth = checkSpritesNextPosition(mazeArray, [blockedCellArray[0], blockedCellArray[1] + 1], mazeGridSize);
-				const checkOneCellWest = checkSpritesNextPosition(mazeArray, [blockedCellArray[0] - 1, blockedCellArray[1]], mazeGridSize);
-				if (!checkOneCellSouth && checkOneCellWest) {
-					normalAngle = normalWest;
-				} else if (checkOneCellSouth && !checkOneCellWest) {
-					normalAngle = normalSouth;
-				} else {
-					normalAngle = normalSouthWest;
-				}
-			} else if (southFaceDist < westFaceDist) {
-				normalAngle = normalSouth;
-			} else {
-				normalAngle = normalWest;
-			}
-		}
-	}
-	return [normalAngle, posDecimalExact, posDecimalImpact, adjustedCellImpactPos];
-};
-
 export const calculateImpactsReflection = (_angleOfIncidence, _normalAngle) => {
 	return (((_normalAngle + ((((((((_normalAngle - 180) % 360) + 360) % 360) - _angleOfIncidence) % 360) + 360) % 360)) % 360) + 360) % 360;
 };
@@ -391,10 +303,10 @@ export const calculateImpactsReflection = (_angleOfIncidence, _normalAngle) => {
 export const calculateSpritesNextPosition = (_sprite, _spriteVelocity, _gridSize, _curSpritePositionPrecise) => {
 	let curSpritePositionArray = gridToArray(_curSpritePositionPrecise[0], _curSpritePositionPrecise[1], _gridSize);
 	let curSpritePositionGrid = arrayToGrid(curSpritePositionArray[0], curSpritePositionArray[1], _gridSize);
-	const currentDirection = Math.atan2(_spriteVelocity.z, _spriteVelocity.x) * (180 / Math.PI);
-	const curSpritePositionPrecise = [_sprite.position.x, _sprite.position.z];
-	const currentGridX = Math.floor(curSpritePositionPrecise[0]);
-	const currentGridY = Math.floor(curSpritePositionPrecise[1]);
+	let spriteDirection = returnSpriteDirection(_spriteVelocity);
+	const spriteDirectionPrecise = [_sprite.position.x, _sprite.position.z];
+	const currentGridX = Math.floor(spriteDirectionPrecise[0]);
+	const currentGridY = Math.floor(spriteDirectionPrecise[1]);
 	let nextGridX = currentGridX;
 	let nextGridY = currentGridY;
 	let dx = _spriteVelocity.x;
@@ -415,131 +327,241 @@ export const calculateSpritesNextPosition = (_sprite, _spriteVelocity, _gridSize
 		predictedArray = gridToArray(nextGridX, nextGridY, _gridSize);
 		predictedGrid = arrayToGrid(predictedArray[0], predictedArray[1], _gridSize);
 	}
-	let nextPrecise = [spriteClone.position.x, spriteClone.position.z];
-	return [predictedGrid, predictedArray, nextPrecise, currentDirection];
+	let impactLocation = [spriteClone.position.x, spriteClone.position.z];
+
+	return {predictedGrid, predictedArray, impactLocation, spriteDirection};
 };
 
 export const checkSpritesNextPosition = (_mazeArray, _arrayPosition, _spriteVelocity) => {
-
-	//gets the current direction in degrees
 	let currentDirection = returnSpriteDirection(_spriteVelocity);
-
-	//the array indices for the next position
 	const mazeArrayX = _arrayPosition[0]; const mazeArrayY = _arrayPosition[1];
-
-	// Check the next position is within the boundaries of the grid
 	if ((mazeArrayX >= 0 && mazeArrayX < mazeGridSize) && (mazeArrayY >= 0 && mazeArrayY < mazeGridSize)) {
-		//Within Grid Extents 
-
-		// check if there is something in the next cell
 		if ( !_mazeArray[mazeArrayX][mazeArrayY]) {
-
 			if ((mazeArrayX > 0 && mazeArrayX < mazeGridSize - 1) && (mazeArrayY >= 0 && mazeArrayY < mazeGridSize - 1)) {
-				if (_mazeArray[mazeArrayX][mazeArrayY - 1] && _mazeArray[mazeArrayX - 1][mazeArrayY] && currentDirection === 45) { console.log("\x1b[31m\x1b[1m SE corner blocked");return false; }
-				if (_mazeArray[mazeArrayX][mazeArrayY - 1] && _mazeArray[mazeArrayX + 1][mazeArrayY] && currentDirection === 135) { console.log("\x1b[31m\x1b[1m SW corner blocked");return false; }
-				if (_mazeArray[mazeArrayX][mazeArrayY + 1] && _mazeArray[mazeArrayX + 1][mazeArrayY] && currentDirection === 225) { console.log("\x1b[31m\x1b[1m NW corner blocked");return false; }
-				if (_mazeArray[mazeArrayX][mazeArrayY + 1] && _mazeArray[mazeArrayX - 1][mazeArrayY] && currentDirection === 315) { console.log("\x1b[31m\x1b[1m NE corner blocked");return false; }
+				if (_mazeArray[mazeArrayX][mazeArrayY - 1] && _mazeArray[mazeArrayX - 1][mazeArrayY] && currentDirection === 45) { console.log("\x1b[31m\x1b[1mTarget cell is clear but SE corner is blocked");return true; }
+				if (_mazeArray[mazeArrayX][mazeArrayY - 1] && _mazeArray[mazeArrayX + 1][mazeArrayY] && currentDirection === 135) { console.log("\x1b[31m\x1b[1mTarget cell is clear but SW corner is blocked");return true; }
+				if (_mazeArray[mazeArrayX][mazeArrayY + 1] && _mazeArray[mazeArrayX + 1][mazeArrayY] && currentDirection === 225) { console.log("\x1b[31m\x1b[1mTarget cell is clear but NW corner is blocked");return true; }
+				if (_mazeArray[mazeArrayX][mazeArrayY + 1] && _mazeArray[mazeArrayX - 1][mazeArrayY] && currentDirection === 315) { console.log("\x1b[31m\x1b[1mTarget cell is clear but NE corner is blocked");return true; }
 			}
-
-			console.log(`\x1b[32m\x1b[1m Next Cell (${mazeArrayX},${mazeArrayY}) is accessible`);
-			return true;
-		} else {
-
-			console.log(`\x1b[31m\x1b[1m Next Cell (${mazeArrayX},${mazeArrayY}) is Occupied`);
+			console.log(`\x1b[32m\x1b[1mTarget Cell (${mazeArrayX},${mazeArrayY}) is accessible`);
 			return false;
+		} else {
+			console.log(`\x1b[31m\x1b[1mTarget Cell (${mazeArrayX},${mazeArrayY}) is blocked`);
+			console.log("\x1b[31m\x1b[1mTarget cell is blocked");
+			return true;
 		}
-
 	} else {
-		console.log(`\x1b[31m\x1b[1m Next Cell (${mazeArrayX},${mazeArrayY}) is off grid`);
-		return false;
+		console.log(`\x1b[31m\x1b[1mTarget Cell (${mazeArrayX},${mazeArrayY}) is off grid`);
+		return true;
 	}
+};
+export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePositionPrecise) => {
+	let angle = null;
+	let normalWest = 0; let normalEast = 180; let normalSouth = 90; let normalNorth = 270;
+	let normalNorthWest = 45; let normalNorthEast = 315; let normalSouthWest = 135; let normalSouthEast = 225;
+	const boundaryLimitMin = -halfGrid; const boundaryLimitMax = halfGrid;
+	const exactPosition = [_sprite.position.x, _sprite.position.z];
+	const impactPosition = [_nextSpritePositionPrecise[0], _nextSpritePositionPrecise[1]];
+	console.log(`\x1b[92m\x1b[1mTarget impact coords (${JSON.stringify(impactPosition)} are off grid`);
+
+	let XPosDecimalExact = Number(Number(exactPosition[0]).toFixed(3));
+	let YPosDecimalExact = Number(Number(exactPosition[1]).toFixed(3));
+	let XPosDecimalImpact = Number(Number(impactPosition[0]).toFixed(3));
+	let YPosDecimalImpact = Number(Number(impactPosition[1]).toFixed(3));
+	if (XPosDecimalImpact >= boundaryLimitMax) { angle = normalWest; }
+	if (XPosDecimalImpact <= boundaryLimitMin) { angle = normalEast; }
+	if (YPosDecimalImpact >= boundaryLimitMax) { angle = normalNorth; }
+	if (YPosDecimalImpact <= boundaryLimitMin) { angle = normalSouth; }
+	if (XPosDecimalImpact >= boundaryLimitMax && YPosDecimalImpact >= boundaryLimitMax) { angle = normalNorthWest; } // SE
+	if (XPosDecimalImpact <= boundaryLimitMin && YPosDecimalImpact <= boundaryLimitMin) { angle = normalSouthEast; } // NW
+	if (XPosDecimalImpact >= boundaryLimitMax && YPosDecimalImpact <= boundaryLimitMin) { angle = normalNorthEast; } // NE
+	if (XPosDecimalImpact <= boundaryLimitMin && YPosDecimalImpact >= boundaryLimitMax) { angle = normalSouthWest; } // SW
+	let blockedCellArray = gridToArray(XPosDecimalImpact, YPosDecimalImpact, mazeGridSize);
+	let blockedCellGrid = arrayToGrid(blockedCellArray[0], blockedCellArray[1], mazeGridSize);
+	let impactLocation = [XPosDecimalImpact, YPosDecimalImpact];
+	let posDecimalExact = [XPosDecimalExact, YPosDecimalExact];
+	let adjustedCellImpactPos = undefined;
+	if (angle === null) {
+		const getDirection = returnDirectionFromCoords(posDecimalExact, impactLocation);
+		let cellImpactPosX = (impactLocation[0] - blockedCellGrid[0]).toString();
+		let cellImpactPosY = (impactLocation[1] - blockedCellGrid[1]).toString();
+		cellImpactPosX = cellImpactPosX > 0 ? cellImpactPosX.slice(0, 4) : cellImpactPosX.slice(0, 5);
+		cellImpactPosY = cellImpactPosY > 0 ? cellImpactPosY.slice(0, 4) : cellImpactPosY.slice(0, 5);
+		cellImpactPosX = Number(cellImpactPosX); cellImpactPosY = Number(cellImpactPosY);
+		adjustedCellImpactPos = [cellImpactPosX, cellImpactPosY];
+		if (getDirection >= 0 && getDirection < 91) {
+			const northFaceDist = 0.5 + cellImpactPosY;
+			const westFaceDist = 0.5 + cellImpactPosX;
+			if (northFaceDist === westFaceDist) {
+				const checkOneCellNorth = checkSpritesNextPosition(mazeArray, [blockedCellArray[0], blockedCellArray[1] - 1], mazeGridSize);
+				const checkOneCellWest = checkSpritesNextPosition(mazeArray, [blockedCellArray[0] - 1, blockedCellArray[1]], mazeGridSize);
+				if (!checkOneCellNorth && checkOneCellWest) {
+					angle = normalWest;
+				} else if (checkOneCellNorth && !checkOneCellWest) {
+					angle = normalNorth;
+				} else {
+					angle = normalNorthWest;
+				}
+			} else if (northFaceDist < westFaceDist) {
+				angle = normalNorth;
+			} else {
+				angle = normalWest;
+			}
+		} else if (getDirection >= 90 && getDirection < 181) {
+			const northFaceDist = 0.5 + cellImpactPosY;
+			const eastFaceDist = 0.5 - cellImpactPosX;
+			if (northFaceDist === eastFaceDist) {
+				const checkOneCellNorth = checkSpritesNextPosition(mazeArray, [blockedCellArray[0], blockedCellArray[1] - 1], mazeGridSize);
+				const checkOneCellEast = checkSpritesNextPosition(mazeArray, [blockedCellArray[0] + 1, blockedCellArray[1]], mazeGridSize);
+				if (!checkOneCellNorth && checkOneCellEast) {
+					angle = normalEast;
+				} else if (checkOneCellNorth && !checkOneCellEast) {
+					angle = normalNorth;
+				} else {
+					angle = normalNorthEast;
+				}
+			} else if (northFaceDist < eastFaceDist) {
+				angle = normalNorth;
+			} else {
+				angle = normalEast;
+			}
+		} else if (getDirection >= normalWest && getDirection < 271) {
+			const southFaceDist = 0.5 - cellImpactPosY;
+			const eastFaceDist = 0.5 - cellImpactPosX;
+			if (southFaceDist === eastFaceDist) {
+				const checkOneCellSouth = checkSpritesNextPosition(mazeArray, [blockedCellArray[0], blockedCellArray[1] + 1], mazeGridSize);
+				const checkOneCellEast = checkSpritesNextPosition(mazeArray, [blockedCellArray[0] + 1, blockedCellArray[1]], mazeGridSize);
+				if (!checkOneCellSouth && checkOneCellEast) {
+					angle = normalEast;
+				} else if (checkOneCellSouth && !checkOneCellEast) {
+					angle = normalSouth;
+				} else {
+					angle = normalSouthEast;
+				}
+			} else if (southFaceDist < eastFaceDist) {
+				angle = normalSouth;
+			} else {
+				angle = normalEast;
+			}
+		} else if (getDirection >= 270 && getDirection < 361) {
+			const southFaceDist = 0.5 - cellImpactPosY;
+			const westFaceDist = 0.5 + cellImpactPosX;
+			if (southFaceDist === westFaceDist) {
+				const checkOneCellSouth = checkSpritesNextPosition(mazeArray, [blockedCellArray[0], blockedCellArray[1] + 1], mazeGridSize);
+				const checkOneCellWest = checkSpritesNextPosition(mazeArray, [blockedCellArray[0] - 1, blockedCellArray[1]], mazeGridSize);
+				if (!checkOneCellSouth && checkOneCellWest) {
+					angle = normalWest;
+				} else if (checkOneCellSouth && !checkOneCellWest) {
+					angle = normalSouth;
+				} else {
+					angle = normalSouthWest;
+				}
+			} else if (southFaceDist < westFaceDist) {
+				angle = normalSouth;
+			} else {
+				angle = normalWest;
+			}
+		}
+	}
+	return {angle, posDecimalExact, impactLocation, adjustedCellImpactPos};
 };
 
 export const animateSpriteControl = (_sprite, _mazeArray, _gridSize, _spriteVelocity, _velocityMultiplier, _velocityDamper) => {
 
 	let curSpritePositionPrecise = [null, null];
 	let curSpritePositionArray = [null, null];
-	let nextSpritePosition = undefined;
-	let nextSpritePositionPrecise = [null, null];
-	let nextSpritePositionArray = [null, null];
-	let nextSpritePositionStatus = true;
+	let curSpritePositionGrid = [null, null];
 	let lastSpritePositionArray = [null, null];
+	let nextSpritePosition = undefined;
+	let thepathAheadIsBlocked = false;
 
 	const animateSprite = () => {
 
 		if (!sysPause) {
 
-			// Fetching precise x y coords and corresponding array indices.
+			// Fetching the array indices and coords for the cell at the sprites precise location.
 			curSpritePositionPrecise = [_sprite.position.x, _sprite.position.z];
 			curSpritePositionArray = gridToArray(curSpritePositionPrecise[0], curSpritePositionPrecise[1], _gridSize);
+			curSpritePositionGrid = arrayToGrid(curSpritePositionArray[0], curSpritePositionArray[1], _gridSize);
 
-
-			// calculateSpritesNextPosition returns the following
-			// return [predictedGrid, predictedArray, nextPrecise, currentDirection];
+			// Calculating the sprites next cell and the impact location.
 			nextSpritePosition = calculateSpritesNextPosition(_sprite, _spriteVelocity, _gridSize, curSpritePositionPrecise);
-			nextSpritePositionPrecise = nextSpritePosition[2]; // nextPrecise grid coords x,y
-			nextSpritePositionArray = nextSpritePosition[1]; // predictedArray next predicted array indices 
+			// nextSpritePosition.predictedGrid
+			// nextSpritePosition.predictedArray
+			// nextSpritePosition.impactLocation
+			// nextSpritePosition.spriteDirection
 
-			// checkSpritesNextPosition checking the next predicted cells contents.
-			// returns true is you can pass and false if you cant.
-			nextSpritePositionStatus = checkSpritesNextPosition(_mazeArray, nextSpritePositionArray, _spriteVelocity);
+			thepathAheadIsBlocked = checkSpritesNextPosition(_mazeArray, nextSpritePosition.predictedArray, _spriteVelocity);
+			// returns false if next _mazeArray[x][y] contains nothing
+			// returns true if next _mazeArray[x][y] is occupied.
 
-			// Below initially lastSpritePositionArray is not set were as curSpritePositionArray has been set above
-			let isLastSpritePosCurSpritePos = isArrayMatch(lastSpritePositionArray, curSpritePositionArray);
-			// Initially isLastSpritePosCurSpritePos === false;
+			// isStillInSameCell is to minimise spamming the same data in the same cell.
+			// lastSpritePositionArray was initialised as [null, null] arrays will not match first pass.
+			let isStillInSameCell = isArrayMatch(lastSpritePositionArray, curSpritePositionArray);
+			
+			// if not in the same cell as before and the path ahead is not blocked ...
+			if (!isStillInSameCell && !thepathAheadIsBlocked) {
+				
+				// The sprite continues in its current direction (Why technically its not been stopped ?)
+				let currentDirectionRads = nextSpritePosition.spriteDirection * (Math.PI / 180);
+				_spriteVelocity.set(Math.cos(currentDirectionRads) * _spriteVelocity.length(), 0, Math.sin(currentDirectionRads) * _spriteVelocity.length());
 
-			if (!isLastSpritePosCurSpritePos && nextSpritePositionStatus) {
-				// When isLastSpritePosCurSpritePos === false; (game start etc)...
-
-				// get the direction of the sprite and let it be on its way
-				let nextRadians = Math.atan2(_spriteVelocity.z, _spriteVelocity.x);
-				_spriteVelocity.set(Math.cos(nextRadians) * _spriteVelocity.length(), 0, Math.sin(nextRadians) * _spriteVelocity.length());
-
-				// now lastSpritePositionArray will === curSpritePositionArray
+				// Set lastCell thisCell skipping this call until next cell.
 				lastSpritePositionArray = curSpritePositionArray;
+				console.log(`\x1b[91m\x1b[1mEntered Cell: ${curSpritePositionGrid} heading ${nextSpritePosition.spriteDirection} degrees`);
+				
 			} else {
 
-				// nextSpritePositionStatus if false it means the path is blocked
-				if (!nextSpritePositionStatus) {
+				if (thepathAheadIsBlocked) {
 
-					// I thought I already had the direction (while writing comments)
+					// nextSpritePosition.spriteDirection) does carry the direction from entering the cell
+					// however to be consise we will refetch the direction at this point.
 					let curSpriteDirection = returnSpriteDirection(_spriteVelocity);
 
-					// The Normal is the perpendicular angle from the face
-					let calculateNormals = calculateImpactsNormal(_sprite, _spriteVelocity, nextSpritePositionPrecise);
-					let impactingNormal = calculateNormals[0];
-					let impactingPosition = calculateNormals[2];
-					const gridMin = -5.5; const gridMax = 5.5;
+					// Calculate the normal for the impact as well as the precise location.
+					let calculateNormal = calculateImpactsNormal(_sprite, _spriteVelocity, nextSpritePosition.impactLocation);
+					let impactLocation = calculateNormal.impactLocation;
+					let angle = calculateNormal.angle;
 
-					// check impactingPosition is within the limits [-5.5,-5.5] [5.5,5.5]
-					// if the targets x and y are beyond the grid extents pull them back in
-					let targetPointX = impactingPosition[0] < gridMin ? -5.499 : impactingPosition[0] > gridMax ? 5.499 : impactingPosition[0];
-					let targetPointY = impactingPosition[1] < gridMin ? -5.499 : impactingPosition[1] > gridMax ? 5.499 : impactingPosition[1];
+					// impactingPosition should be within the grid limits [-5.5,-5.5] [5.5,5.5]
+					let targetPointX = impactLocation[0] < gridMin ? -5.499 : impactLocation[0] > gridMax ? 5.499 : impactLocation[0];
+					let targetPointY = impactLocation[1] < gridMin ? -5.499 : impactLocation[1] > gridMax ? 5.499 : impactLocation[1];
 
-					//Calculate the distance to imapacting the prescise target position from current poistion
+					// distance to impact is being used to measure the distance between the current and impact points
+					// the distanceToImpactOffset is a preset set constant for, later velocity angles and sprites diameter need scoped 
 					let distanceToImpact = _sprite.position.distanceTo(new THREE.Vector3(targetPointX, _sprite.position.y, targetPointY));
 
-					//if (distanceToImpact >= _velocityMultiplier) {
+					if (distanceToImpact >= distanceToImpactOffset) {
 
-						if (distanceToImpact >= Math.abs(_velocityMultiplier * 3)) {
+						// The sprite is still out of range for triggering a direction change
+						//console.log(`\x1b[94m\x1b[1mDistance to impact: ${distanceToImpact} >= Distance Compensation: ${distanceToImpactOffset}`);
 
-						// if the distance to impact is equal or greater than the velocityMultiplier then update position
+						// UpdatingSpriteLabel was placed here to return precise coords evevry increment
+						// the function was modified to only display the grid coords as integers
+						// this could be moved to the initial condition
 						updateSpriteLabel(_sprite, _gridSize);
 						_sprite.position.add(_spriteVelocity);
 						_spriteVelocity.multiplyScalar(_velocityDamper);
 
 					} else {
 
-						// if the distance to imapct is less than the velocity multiplier then change direction (reflect, bounce)
-						_sprite.position.set(impactingPosition[0], _sprite.position.y, impactingPosition[1]);
-						let reflectedDirection = calculateImpactsReflection(curSpriteDirection, impactingNormal);
-						const degreesToRads = reflectedDirection * (Math.PI / 180);
+						// the sprite is within impact range, using the normal and current direction to change direction
+						// dropping in a random angular offsetto prevent boxed deflections
+
+						let reflectedDirection = calculateImpactsReflection(curSpriteDirection+Math.random()+-0.5, angle);
+						const degreesToRads = reflectedDirection* (Math.PI / 180);
 						_spriteVelocity.set(Math.cos(degreesToRads) * _spriteVelocity.length(), 0, Math.sin(degreesToRads) * _spriteVelocity.length());
-						nextSpritePositionStatus = true;
+						_sprite.position.add(_spriteVelocity);
+						_spriteVelocity.multiplyScalar(_velocityDamper);
+						thepathAheadIsBlocked = false;
+
+						console.log(`\x1b[92m\x1b[1mImpact occured incident:${curSpriteDirection}, normal:${angle}, relfection:${reflectedDirection}`);
+						//sysPause=true;
 					}
 				} else {
 
-					// the path was not blocked continue path
+					// The path ahead is clear the sprite can continue onward
+					// If updateSpriteLabel is only returning integers this could be moved
 					updateSpriteLabel(_sprite, _gridSize);
 					_sprite.position.add(_spriteVelocity);
 					_spriteVelocity.multiplyScalar(_velocityDamper);
