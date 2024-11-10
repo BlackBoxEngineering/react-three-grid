@@ -5,7 +5,7 @@ This project was designed to introduce my daughter to computation.
 THREE.js library was employed to aid creating onscreen web graphics.
 
 # To Clone the project
-https://github.com/BlackBoxEngineering/doodle.git
+git clone https://github.com/BlackBoxEngineering/react-three-grid.git
 
 # To Install the project
 npm install
