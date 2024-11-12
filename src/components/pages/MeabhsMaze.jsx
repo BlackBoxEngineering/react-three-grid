@@ -27,8 +27,8 @@ function MeabhsMaze() {
     <div>
       <div className="bbmThreeScene">
       <div id="bbmThreeScene" ref={mountRef} className="flex flex-wrap w-screen h-screen backdrop-blur-sm"/>
-      <button id="pauseBtn" className="pauseBtn bbmBtn" onClick={ togglePauseGrid }>{ btnmsg }</button>
     </div>
+    <button id="pauseBtn" className="pauseBtn bbmBtn" onClick={ togglePauseGrid }>{ btnmsg }</button>
     </div>
   );
 }
