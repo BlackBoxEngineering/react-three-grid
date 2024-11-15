@@ -18,7 +18,7 @@ export const gridMax = 5.5;
 
 // Sprite
 export const spriteDiameter = 0.5;
-export const spriteInitialAngle = 60;
+export const spriteInitialAngle = 45;
 export const spriteInitialRadians = spriteInitialAngle * (Math.PI / 180);
 export const spriteVelocityMultiplier = 0.1;
 export const spriteVelocityDamper = 1;
@@ -38,7 +38,7 @@ export let sysPause = true;
 
 export const scenePause = (_pausedState) => { sysPause = _pausedState; };
 
-let isStillInSameCell=null;
+let isStillInSameCell = null;
 
 // Should not be using listeners in react (To change)
 export const sceneLoadListeners = () => {
@@ -131,12 +131,9 @@ export const placeMazeWall = (_gridSize) => {
 	if (mazeArray[arrayPosition[0]][arrayPosition[1]] === 1) {
 		mazeArray[arrayPosition[0]][arrayPosition[1]] = 0;
 		const objectsToNuke = [];
-		scene.traverse((child) => {
-			if (child instanceof THREE.Mesh && child.position.x === selectedPosition.x && child.position.z === selectedPosition.z) {
-				objectsToNuke.push(child);
-			}
-		});
+		scene.traverse((child) => { if (child instanceof THREE.Mesh && child.position.x === selectedPosition.x && child.position.z === selectedPosition.z) { objectsToNuke.push(child); } });
 		objectsToNuke.forEach((obj) => scene.remove(obj));
+		selectionHighlighter = createSelectionHighlighter();
 	} else {
 		const newMazeWall = createMazeWall(selectedPosition.x, 0.5, selectedPosition.z);
 		mazeArray[arrayPosition[0]][arrayPosition[1]] = 1;
@@ -175,24 +172,15 @@ export const createVanishingHelperArrow = (_spritePosX, _spritePosZ) => {
 	const length = 1;
 	const color = 0xff6347;
 	const arrowHelper = new THREE.ArrowHelper(direction, position, length, color);
-	setTimeout(() => {
-		scene.remove(arrowHelper);
-	}, 5000);
+	setTimeout(() => { scene.remove(arrowHelper); }, 5000);
 	return arrowHelper;
 };
 
 export const removeHelperArrows = () => {
 	const arrowsToRemove = [];
-	scene.traverse((object) => {
-	  if (object instanceof THREE.ArrowHelper) {
-		arrowsToRemove.push(object);
-	  }
-	});
-	arrowsToRemove.forEach((arrow) => {
-	  scene.remove(arrow);
-	});
-  };
- 
+	scene.traverse((object) => { if (object instanceof THREE.ArrowHelper) { arrowsToRemove.push(object); } });
+	arrowsToRemove.forEach((arrow) => { scene.remove(arrow); });
+};
 
 export const createGridHelper = () => {
 	const normalColour = new THREE.Color(0x00ffff);
@@ -232,11 +220,18 @@ export const createMazeArrayLabels = (_gridSize) => {
 };
 
 export const createSelectionHighlighter = () => {
+	let highlighter = getObjectByUID('highlighter');
+	if (highlighter) { return highlighter; }
 	const geometry = new THREE.BoxGeometry(1, 0.01, 1);
 	const material = new THREE.MeshBasicMaterial({ color: 0x668cff, opacity: 0.8, transparent: true });
-	const marker = new THREE.Mesh(geometry, material);
-	scene.add(marker);
-	return marker;
+	highlighter = new THREE.Mesh(geometry, material);
+	highlighter.userData = { uid: 'highlighter' };
+	scene.add(highlighter);
+	return highlighter;
+};
+
+export const getObjectByUID = (_UID) => {
+	return scene.getObjectByProperty('userData.uid', _UID);
 };
 
 export const updateSelectionHighlighter = (_gridSize) => {
@@ -247,6 +242,9 @@ export const updateSelectionHighlighter = (_gridSize) => {
 		let cellX = Math.round(intersectPoint.x) < halfGrid ? Math.round(intersectPoint.x) : halfGrid;
 		let cellZ = Math.round(intersectPoint.z) < halfGrid ? Math.round(intersectPoint.z) : halfGrid;
 		selectionHighlighter.position.set(cellX, 0.005, cellZ);
+		if (!selectionHighlighter.parent) { scene.add(selectionHighlighter); }
+	} else {
+		if (selectionHighlighter.parent) { scene.remove(selectionHighlighter); }
 	}
 };
 
@@ -395,59 +393,56 @@ export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePosi
 	const exactPosition = [Number(Number(_sprite.position.x).toFixed(3)), Number(Number(_sprite.position.z).toFixed(3))];
 	let exactCellArray = gridToArray(exactPosition[0], exactPosition[1], mazeGridSize);
 	let exactCellGrid = arrayToGrid(exactCellArray[0], exactCellArray[1], mazeGridSize);
-	const cellminX = exactCellGrid[0] - 0.5;const cellmaxX = exactCellGrid[0] + 0.5;
-	const cellminY = exactCellGrid[1] - 0.5;const cellmaxY = exactCellGrid[1] + 0.5;
+	const cellminX = exactCellGrid[0] - 0.5; const cellmaxX = exactCellGrid[0] + 0.5;
+	const cellminY = exactCellGrid[1] - 0.5; const cellmaxY = exactCellGrid[1] + 0.5;
 	const impactPosition = [Number(Number(_nextSpritePositionPrecise[0]).toFixed(3)), Number(Number(_nextSpritePositionPrecise[1]).toFixed(3))];
 	let impactCorrectionX = impactPosition[0]; let impactCorrectionY = impactPosition[1];
-	if (impactPosition[0] < cellminX) {impactCorrectionX = cellminX;}
-	else if (impactPosition[0] > cellmaxX) {impactCorrectionX = cellmaxX;} 
-	else {impactCorrectionX = impactPosition[0];}
-	if (impactPosition[1] < cellminY) {impactCorrectionY = cellminY;} 
-	else if (impactPosition[1] > cellmaxY) {impactCorrectionY = cellmaxY;} 
-	else {impactCorrectionY = impactPosition[1];}
+	if (impactPosition[0] < cellminX) { impactCorrectionX = cellminX; }
+	else if (impactPosition[0] > cellmaxX) { impactCorrectionX = cellmaxX; }
+	else { impactCorrectionX = impactPosition[0]; }
+	if (impactPosition[1] < cellminY) { impactCorrectionY = cellminY; }
+	else if (impactPosition[1] > cellmaxY) { impactCorrectionY = cellmaxY; }
+	else { impactCorrectionY = impactPosition[1]; }
 	let impactLocation = [impactCorrectionX, impactCorrectionY];
 	scene.add(createVanishingHelperArrow(impactCorrectionX, impactCorrectionY));
 	let blockedCellArray = gridToArray(impactPosition[0], impactPosition[1], mazeGridSize);
 	let blockedCellGrid = arrayToGrid(blockedCellArray[0], blockedCellArray[1], mazeGridSize);
 
 	// A corner is not a corner when it has a block to the side
-	let CC = undefined; let NN = undefined; let WW = undefined; 
+	// This is not catching everytime (rarely it will pick a corner within row or column of walls) - Testing
+	let CC = undefined; let NN = undefined; let WW = undefined;
 	let SS = undefined; let EE = undefined;
 
-	let outOfBounds=false;
+	let outOfBounds = false;
 	let bcX = blockedCellArray[0];
 	let bcY = blockedCellArray[1];
-	if (bcX < 0 || bcX > 10){outOfBounds=true;}
-	if (bcY < 0 || bcY> 10){outOfBounds=true;}
+	if (bcX < 0 || bcX > 10) { outOfBounds = true; }
+	if (bcY < 0 || bcY > 10) { outOfBounds = true; }
 	const getDirection = returnSpriteDirection(_spriteVelocity);
 	const northFaceDist = (1 - 0.5 + impactCorrectionY - exactCellGrid[1]) % 1;
 	const westFaceDist = (1 - 0.5 + impactCorrectionX - exactCellGrid[0]) % 1;
 	const eastFaceDist = (1 - westFaceDist);
 	const southFaceDist = (1 - northFaceDist);
 
-	if (outOfBounds){
-		if (impactLocation[0] < -5.45 && impactLocation[1] < -5.45 && getDirection === 225){
-			// NW Board Corner
-			console.log("Board Corner:", 225);
+	if (outOfBounds) {
+		if (impactLocation[0] < -5.45 && impactLocation[1] < -5.45 && getDirection === 225) {
+			console.log("Board Corner NW:", 225);
 			//sysPause=true;
 			return 45;
-		}else if (impactLocation[0] > 5.45 && impactLocation[1] > 5.45 && getDirection === 45){
-			// SE Board Corner
-			console.log("Board Corner:", 45);
+		} else if (impactLocation[0] > 5.45 && impactLocation[1] > 5.45 && getDirection === 45) {
+			console.log("Board Corner SE:", 45);
 			//sysPause=true;
 			return 225;
-		}else if (impactLocation[0] < -5.45 && impactLocation[1] > 5.45 && getDirection === 135){
-			// SW Board Corner
-			console.log("Board Corner:", 135);
+		} else if (impactLocation[0] < -5.45 && impactLocation[1] > 5.45 && getDirection === 135) {
+			console.log("Board Corner SW:", 135);
 			//sysPause=true;
 			return 315;
-		}else if (impactLocation[0] > 5.45 && impactLocation[1] < -5.45 && getDirection === 315){
-			// SE Board Corner
-			console.log("Board Corner:", 315);
+		} else if (impactLocation[0] > 5.45 && impactLocation[1] < -5.45 && getDirection === 315) {
+			console.log("Board Corner SE:", 315);
 			//sysPause=true;
 			return 135;
-		}else{
-			outOfBounds=true;
+		} else {
+			outOfBounds = true;
 		}
 	}
 
@@ -467,7 +462,7 @@ export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePosi
 		} else { EE = 99; }
 	}
 
-	if(!isStillInSameCell){
+	if (!isStillInSameCell) {
 		console.log("");
 		console.log(`\x1b[32m\x1b[1mImpact Position  (${impactPosition[0]},${impactPosition[1]})`);
 		console.log(`\x1b[32m\x1b[1mImpact Location  (${impactLocation[0]},${impactLocation[1]})`);
@@ -480,11 +475,11 @@ export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePosi
 	}
 
 	if (getDirection >= 0 && getDirection < 91) {
-	
-		if(!isStillInSameCell){console.log(`\x1b[32m\x1b[1mIncoming North West ${impactLocation}`);}
+
+		if (!isStillInSameCell) { console.log(`\x1b[32m\x1b[1mIncoming North West ${impactLocation}`); }
 		if (northFaceDist === westFaceDist && !outOfBounds) {
-			if(!isStillInSameCell){console.log("\x1b[32m\x1b[1mImpacts a North West Corner");}
-			console.log("NW",NN,WW);
+			if (!isStillInSameCell) { console.log("\x1b[32m\x1b[1mImpacts a North West Corner"); }
+			console.log("NW", NN, WW);
 			//sysPause=true;
 			if (!NN && !WW && Math.round(getDirection) === 45) {
 				return 45;
@@ -496,19 +491,19 @@ export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePosi
 				return 45;
 			}
 		} else if (northFaceDist < westFaceDist) {
-			if(!isStillInSameCell){console.log("\x1b[35m\x1b[1mImpacting a North face");}
+			if (!isStillInSameCell) { console.log("\x1b[35m\x1b[1mImpacting a North face"); }
 			return 90;
 		} else {
-			if(!isStillInSameCell){console.log("\x1b[35m\x1b[1mImpacting a West face");}
+			if (!isStillInSameCell) { console.log("\x1b[35m\x1b[1mImpacting a West face"); }
 			return 0;
 		}
 
 	} else if (getDirection >= 90 && getDirection < 181) {
 
-		if(!isStillInSameCell){console.log(`\x1b[32m\x1b[1mIncoming North East ${impactLocation}`);}
+		if (!isStillInSameCell) { console.log(`\x1b[32m\x1b[1mIncoming North East ${impactLocation}`); }
 		if (northFaceDist === eastFaceDist && !outOfBounds) {
-			if(!isStillInSameCell){console.log("\x1b[32m\x1b[1mImpacting a North East Corner");}
-			console.log("NE",NN,EE);
+			if (!isStillInSameCell) { console.log("\x1b[32m\x1b[1mImpacting a North East Corner"); }
+			console.log("NE", NN, EE);
 			//sysPause=true;
 			if (!NN && !EE && Math.round(getDirection) === 132) {
 				return 135;
@@ -520,19 +515,19 @@ export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePosi
 				return 135;
 			}
 		} else if (northFaceDist < westFaceDist) {
-			if(!isStillInSameCell){console.log("\x1b[35m\x1b[1mImpacting a North face");}
+			if (!isStillInSameCell) { console.log("\x1b[35m\x1b[1mImpacting a North face"); }
 			return 90;
 		} else {
-			if(!isStillInSameCell){console.log("\x1b[35m\x1b[1mImpacting an East face");}
+			if (!isStillInSameCell) { console.log("\x1b[35m\x1b[1mImpacting an East face"); }
 			return 180;
 		}
 
 	} else if (getDirection >= 180 && getDirection < 271) {
 
-		if(!isStillInSameCell){console.log(`\x1b[32m\x1b[1mIncoming South East ${impactLocation}`);}
+		if (!isStillInSameCell) { console.log(`\x1b[32m\x1b[1mIncoming South East ${impactLocation}`); }
 		if (southFaceDist === eastFaceDist && !outOfBounds) {
-			if(!isStillInSameCell){console.log("\x1b[32m\x1b[1mImpacting a South East Corner");}
-			console.log("SE",SS,EE);
+			if (!isStillInSameCell) { console.log("\x1b[32m\x1b[1mImpacting a South East Corner"); }
+			console.log("SE", SS, EE);
 			//sysPause=true;
 			if (!SS && !EE && Math.round(getDirection) == 225) {
 				return 225;
@@ -544,19 +539,19 @@ export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePosi
 				return 225;
 			}
 		} else if (northFaceDist < westFaceDist) {
-			if(!isStillInSameCell){console.log("\x1b[35m\x1b[1mImpacting a South face");}
+			if (!isStillInSameCell) { console.log("\x1b[35m\x1b[1mImpacting a South face"); }
 			return 270;
 		} else {
-			if(!isStillInSameCell){console.log("\x1b[35m\x1b[1mImpacting a East face");}
+			if (!isStillInSameCell) { console.log("\x1b[35m\x1b[1mImpacting a East face"); }
 			return 0;
 		}
 
 	} else if (getDirection >= 270 && getDirection < 361) {
 
-		if(!isStillInSameCell){console.log(`\x1b[32m\x1b[1mIncoming South West ${impactLocation}`);}
+		if (!isStillInSameCell) { console.log(`\x1b[32m\x1b[1mIncoming South West ${impactLocation}`); }
 		if (northFaceDist === westFaceDist && !outOfBounds) {
-			if(!isStillInSameCell){console.log("\x1b[32m\x1b[1mImpacting a South West Corner");}
-			console.log("SW",SS,WW);
+			if (!isStillInSameCell) { console.log("\x1b[32m\x1b[1mImpacting a South West Corner"); }
+			console.log("SW", SS, WW);
 			//sysPause=true;
 			if (!SS && !WW && Math.round(getDirection) == 315) {
 				return 315;
@@ -568,13 +563,12 @@ export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePosi
 				return 315;
 			}
 		} else if (northFaceDist < westFaceDist) {
-			if(!isStillInSameCell){console.log("\x1b[35m\x1b[1mImpacting a South face");}
+			if (!isStillInSameCell) { console.log("\x1b[35m\x1b[1mImpacting a South face"); }
 			return 270;
 		} else {
-			if(!isStillInSameCell){console.log("\x1b[35m\x1b[1mImpacting a West face");}
+			if (!isStillInSameCell) { console.log("\x1b[35m\x1b[1mImpacting a West face"); }
 			return 0;
 		}
-
 	} else {
 		console.log("straight");
 		return Math.abs((getDirection + 180) % 360);
