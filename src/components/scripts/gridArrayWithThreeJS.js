@@ -505,7 +505,7 @@ export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePosi
 			if (!isStillInSameCell) { console.log("\x1b[32m\x1b[1mImpacting a North East Corner"); }
 			console.log("NE", NN, EE);
 			//sysPause=true;
-			if (!NN && !EE && Math.round(getDirection) === 132) {
+			if (!NN && !EE && Math.round(getDirection) === 135) {
 				return 135;
 			} else if (NN && !EE) {
 				return 180;
