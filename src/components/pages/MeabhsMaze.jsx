@@ -25,12 +25,11 @@ function MeabhsMaze() {
 
   return (
     <div>
-      <div className="bbmThreeScene">
-      <div id="bbmThreeScene" ref={mountRef} className="flex flex-wrap w-screen h-screen backdrop-blur-sm"/>
-    </div>
-    <button id="pauseBtn" className="pauseBtn bbmBtn" onClick={ togglePauseGrid }>{ btnmsg }</button>
+      <div className="bbmThreeScene"><div id="bbmThreeScene" ref={mountRef} className="flex flex-wrap w-screen h-screen backdrop-blur-sm"/></div>
+      <button id="pauseBtn" className="pauseBtn bbmBtn fixed bottom-10 left-1/2 transform -translate-x-1/2"onClick={togglePauseGrid}>{btnmsg}</button>
     </div>
   );
+  
 }
 
 export default MeabhsMaze;
