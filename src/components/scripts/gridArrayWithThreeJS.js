@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import blackBoxNeonTexture from '../../images/blackBoxNeon.png';
 import blackBoxEyeTexture from '../../images/blackBoxEye.png';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // Tools from THREE Library
 export const scene = new THREE.Scene();
@@ -18,7 +19,7 @@ export const gridMax = 5.5;
 
 // Sprite
 export const spriteDiameter = 0.5;
-export const spriteInitialAngle = 45;
+export const spriteInitialAngle = 66;
 export const spriteInitialRadians = spriteInitialAngle * (Math.PI / 180);
 export const spriteVelocityMultiplier = 0.1;
 export const spriteVelocityDamper = 1;
@@ -30,15 +31,12 @@ export const spriteSweeperIncrement = 0.0001;
 // DistanceToImapactOffset (To include angle yet)
 // Side imapacting and glancing from corners also to add
 export const distanceToImpactOffset = 0.05 + (spriteDiameter * 0.5);
-
 export let mazeGridFloor = undefined;
 export let mazeArray = undefined;
 export let selectionHighlighter = undefined;
 export let sysPause = true;
-
 export const scenePause = (_pausedState) => { sysPause = _pausedState; };
-
-let isStillInSameCell = null;
+export let isStillInSameCell = null;
 
 // Should not be using listeners in react (To change)
 export const sceneLoadListeners = () => {
@@ -76,10 +74,26 @@ export const sceneOrbitalControls = (_camera, _renderer) => {
 };
 
 export const sceneLightingSetup = () => {
-	const light = new THREE.DirectionalLight(0xffffff, 1);
-	light.position.set(0, 20, 10).normalize();
-	return light;
+    const group = new THREE.Group();
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(0, 20, 10).normalize();
+    group.add(directionalLight);
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.5); // Soft white light
+    group.add(ambientLight);
+    // const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.5);
+    // group.add(hemisphereLight);
+    // const pointLight = new THREE.PointLight(0xffffff, 1, 50);
+    // pointLight.position.set(10, 10, 10);
+    // group.add(pointLight);
+    // const spotLight = new THREE.SpotLight(0xffffff, 1);
+    // spotLight.position.set(15, 40, 35);
+    // spotLight.angle = Math.PI / 6;
+    // spotLight.penumbra = 0.2;
+    // spotLight.castShadow = true;
+    // group.add(spotLight);
+    return group;
 };
+
 
 export const arrayToGrid = (_arrayLocationX, _arrayLocationY, _gridSize) => {
 	return [_arrayLocationX - halfGrid, _arrayLocationY - halfGrid];
@@ -292,7 +306,6 @@ export const createSpriteLabel = (_initialText, _x, _y, _z) => {
 export const updateSpriteLabel = (_sprite, _gridSize) => {
 	const spriteLabel = _sprite.getObjectByName("gridPositon");
 	let arrayPosition = gridToArray(_sprite.position.x, _sprite.position.z, _gridSize);
-	let gridPosition = arrayToGrid(arrayPosition[0], arrayPosition[1], _gridSize);
 	if (spriteLabel) { spriteLabel.updateText(`(${arrayPosition[0]},${arrayPosition[1]})`); }
 };
 
@@ -368,23 +381,26 @@ export const calculateSpritesNextPosition = (_sprite, _spriteVelocity, _gridSize
 };
 
 export const checkSpritesNextPosition = (_mazeArray, _preciseGridPosition, _nextArrayPosition, _spriteVelocity) => {
-	let currentDirection = returnSpriteDirection(_spriteVelocity);
-	currentDirection = Math.round(currentDirection);
-	const mazeArrayX = _nextArrayPosition[0];
-	const mazeArrayY = _nextArrayPosition[1];
-	if ((mazeArrayX >= 0 && mazeArrayX < mazeGridSize) && (mazeArrayY >= 0 && mazeArrayY < mazeGridSize)) {
-		if (!_mazeArray[mazeArrayX][mazeArrayY]) {
-			if (_mazeArray[mazeArrayX][mazeArrayY - 1] && _mazeArray[mazeArrayX - 1][mazeArrayY] && currentDirection === 45) { return true; }
-			else if (_mazeArray[mazeArrayX][mazeArrayY - 1] && _mazeArray[mazeArrayX + 1][mazeArrayY] && currentDirection === 135) { return true; }
-			else if (_mazeArray[mazeArrayX][mazeArrayY + 1] && _mazeArray[mazeArrayX + 1][mazeArrayY] && currentDirection === 225) { return true; }
-			else if (_mazeArray[mazeArrayX][mazeArrayY + 1] && _mazeArray[mazeArrayX - 1][mazeArrayY] && currentDirection === 315) { return true; }
-			else { return false; }
-		} else {
-			return true;
-		}
-	} else {
-		return true;
-	}
+    let currentDirection = returnSpriteDirection(_spriteVelocity);
+    currentDirection = Math.round(currentDirection);
+    const mazeArrayX = _nextArrayPosition[0];
+    const mazeArrayY = _nextArrayPosition[1];
+    
+    const isWithinBounds = (x, y) => {return (x >= 0 && x < mazeGridSize) && (y >= 0 && y < mazeGridSize);};
+    if (isWithinBounds(mazeArrayX, mazeArrayY)) {
+        if (!_mazeArray[mazeArrayX][mazeArrayY]) {
+            const checkDirection = (dx, dy, direction) => {return isWithinBounds(mazeArrayX + dx, mazeArrayY + dy) && _mazeArray[mazeArrayX + dx][mazeArrayY + dy] && currentDirection === direction;};
+            if (checkDirection(0, -1, 45) && checkDirection(-1, 0, 45)) { return true; }
+            else if (checkDirection(0, -1, 135) && checkDirection(1, 0, 135)) { return true; }
+            else if (checkDirection(0, 1, 225) && checkDirection(1, 0, 225)) { return true; }
+            else if (checkDirection(0, 1, 315) && checkDirection(-1, 0, 315)) { return true; }
+            else { return false; }
+        } else {
+            return true;
+        }
+    } else {
+        return true;
+    }
 };
 
 export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePositionPrecise, _nextPositionCheck) => {
@@ -630,27 +646,49 @@ export const animateSpriteControl = (_sprite, _mazeArray, _gridSize, _spriteVelo
 	animateSprite();
 };
 
-export const iniGridArrayScene = (mountRef) => {
-	[mazeGridFloor, mazeArray] = createMazeGrid(mazeGridSize, 0.001, mazeGridSize);
-	scene.add(new THREE.AxesHelper(10));
-	scene.add(createGridHelper());
-	scene.add(mazeGridFloor);
-	scene.add(sceneLightingSetup());
-	scene.add(createMazeArrayLabels(mazeGridSize));
-	sceneCamera.position.set(20, 20, 20);
-	sceneLoadListeners();
-	selectionHighlighter = createSelectionHighlighter();
-	const velocity = new THREE.Vector3(Math.cos(spriteInitialRadians), 0, Math.sin(spriteInitialRadians)).multiplyScalar(spriteVelocityMultiplier);
-	const sprite = createSprite(0, 0);
+export const createObject = async (_pathToGltf, _x, _z, _scale) => {
+    const geometryLoader = new GLTFLoader();
+    const geometry = await new Promise((resolve, reject) => {
+        geometryLoader.load(_pathToGltf, (gltf) => {
+                const sceneObject = gltf.scene;
+                if (sceneObject instanceof THREE.Object3D) {
+                    sceneObject.position.set(_x, 0, _z);
+                    sceneObject.scale.set(_scale, _scale, _scale);
+                    resolve(sceneObject);
+				}
+			},
+            (xhr) => {console.log("Loading: " + (xhr.loaded / xhr.total * 100) + "%");},
+            (error) => {reject('Failed loading geometry', error);}
+        );
+    });
+    return geometry;
+};
+
+export const iniGridArrayScene = async (mountRef) => {
+    [mazeGridFloor, mazeArray] = createMazeGrid(mazeGridSize, 0.001, mazeGridSize);
+    //scene.add(new THREE.AxesHelper(10));
+    scene.add(createGridHelper());
+    scene.add(mazeGridFloor);
+    scene.add(sceneLightingSetup());
+    //scene.add(createMazeArrayLabels(mazeGridSize));
+    sceneCamera.position.set(20, 20, 20);
+    sceneLoadListeners();
+    selectionHighlighter = createSelectionHighlighter();
+    const velocity = new THREE.Vector3(Math.cos(spriteInitialRadians), 0, Math.sin(spriteInitialRadians)).multiplyScalar(spriteVelocityMultiplier);
+
+    //const modelPath = '/sprites/truck.glb';
+	const modelPath = '/sprites/sillybob.glb'; 
+	const sprite = await createObject(modelPath, 0, 0, 1);
 	scene.add(sprite);
 	animateSpriteControl(sprite, mazeArray, mazeGridSize, velocity, spriteVelocityMultiplier, spriteVelocityDamper);
-	const renderer = sceneWebGLRenderer(mountRef);
-	mountRef.current.appendChild(renderer.domElement);
-	const controls = sceneOrbitalControls(sceneCamera, renderer);
-	const animateScene = () => {
-		requestAnimationFrame(animateScene);
-		controls.update();
-		renderer.render(scene, sceneCamera);
-	};
-	animateScene();
+
+    const renderer = sceneWebGLRenderer(mountRef);
+    mountRef.current.appendChild(renderer.domElement);
+    const controls = sceneOrbitalControls(sceneCamera, renderer);
+    const animateScene = () => {
+        requestAnimationFrame(animateScene);
+        controls.update();
+        renderer.render(scene, sceneCamera);
+    };
+    animateScene();
 };
