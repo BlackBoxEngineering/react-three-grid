@@ -80,17 +80,17 @@ export const sceneLightingSetup = () => {
     group.add(directionalLight);
     const ambientLight = new THREE.AmbientLight(0x404040, 0.5); // Soft white light
     group.add(ambientLight);
-    // const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.5);
-    // group.add(hemisphereLight);
-    // const pointLight = new THREE.PointLight(0xffffff, 1, 50);
-    // pointLight.position.set(10, 10, 10);
-    // group.add(pointLight);
-    // const spotLight = new THREE.SpotLight(0xffffff, 1);
-    // spotLight.position.set(15, 40, 35);
-    // spotLight.angle = Math.PI / 6;
-    // spotLight.penumbra = 0.2;
-    // spotLight.castShadow = true;
-    // group.add(spotLight);
+    const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.5);
+    group.add(hemisphereLight);
+    const pointLight = new THREE.PointLight(0xffffff, 1, 50);
+    pointLight.position.set(10, 10, 10);
+    group.add(pointLight);
+    const spotLight = new THREE.SpotLight(0xffffff, 1);
+    spotLight.position.set(15, 40, 35);
+    spotLight.angle = Math.PI / 6;
+    spotLight.penumbra = 0.2;
+    spotLight.castShadow = true;
+    group.add(spotLight);
     return group;
 };
 
@@ -426,7 +426,8 @@ export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePosi
 
 	// A corner is not a corner when it has a block to the side
 	// This is not catching everytime (rarely it will pick a corner within row or column of walls) - Testing
-	let CC = undefined; let NN = undefined; let WW = undefined;
+	// let CC = undefined; 
+	let NN = undefined; let WW = undefined;
 	let SS = undefined; let EE = undefined;
 
 	let outOfBounds = false;
@@ -463,7 +464,7 @@ export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePosi
 	}
 
 	if ((blockedCellArray[0] >= 0 && blockedCellArray[0] < mazeGridSize) && (blockedCellArray[1] >= 0 && blockedCellArray[1] < mazeGridSize)) {
-		CC = mazeArray[blockedCellArray[0]][blockedCellArray[1]];
+		//CC = mazeArray[blockedCellArray[0]][blockedCellArray[1]];
 		if ((blockedCellArray[1] - 1 >= 0 && blockedCellArray[1] - 1 < mazeGridSize)) {
 			NN = mazeArray[blockedCellArray[0]][blockedCellArray[1] - 1];
 		} else { NN = 99; }
@@ -545,7 +546,7 @@ export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePosi
 			if (!isStillInSameCell) { console.log("\x1b[32m\x1b[1mImpacting a South East Corner"); }
 			console.log("SE", SS, EE);
 			//sysPause=true;
-			if (!SS && !EE && Math.round(getDirection) == 225) {
+			if (!SS && !EE && Math.round(getDirection) === 225) {
 				return 225;
 			} else if (SS && !EE) {
 				return 180;
@@ -569,7 +570,7 @@ export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePosi
 			if (!isStillInSameCell) { console.log("\x1b[32m\x1b[1mImpacting a South West Corner"); }
 			console.log("SW", SS, WW);
 			//sysPause=true;
-			if (!SS && !WW && Math.round(getDirection) == 315) {
+			if (!SS && !WW && Math.round(getDirection) === 315) {
 				return 315;
 			} else if (SS && !WW) {
 				return 0;
@@ -591,20 +592,30 @@ export const calculateImpactsNormal = (_sprite, _spriteVelocity, _nextSpritePosi
 	}
 };
 
+const isWithinBounds = (x, y) => {
+    return x >= 0 && x < mazeGridSize && y >= 0 && y < mazeGridSize;
+};
+
 export const animateSpriteControl = (_sprite, _mazeArray, _gridSize, _spriteVelocity, _velocityMultiplier, _velocityDamper) => {
 	let curSpritePositionPrecise = [null, null];
 	let curSpritePositionArray = [null, null];
-	let curSpritePositionGrid = [null, null];
 	let lastSpritePositionArray = [null, null];
 	let nextSpritePosition = undefined;
 	const animateSprite = () => {
 		if (!sysPause) {
 			curSpritePositionPrecise = [_sprite.position.x, _sprite.position.z];
 			curSpritePositionArray = gridToArray(curSpritePositionPrecise[0], curSpritePositionPrecise[1], _gridSize);
-			curSpritePositionGrid = arrayToGrid(curSpritePositionArray[0], curSpritePositionArray[1], _gridSize);
 			nextSpritePosition = calculateSpritesNextPosition(_sprite, _spriteVelocity, _gridSize, curSpritePositionPrecise);
 			let nextPositionCheck = checkSpritesNextPosition(_mazeArray, curSpritePositionPrecise, nextSpritePosition.predictedArray, _spriteVelocity);
 			isStillInSameCell = isArrayMatch(lastSpritePositionArray, curSpritePositionArray);
+			if (!isStillInSameCell && lastSpritePositionArray[0] !== null && lastSpritePositionArray[1] !== null) {
+				if (isWithinBounds(lastSpritePositionArray[0], lastSpritePositionArray[1])) {
+					_mazeArray[lastSpritePositionArray[0]][lastSpritePositionArray[1]] = 0; // Reset previous cell to 0
+				}
+				if (isWithinBounds(curSpritePositionArray[0], curSpritePositionArray[1])) {
+					_mazeArray[curSpritePositionArray[0]][curSpritePositionArray[1]] = 2; // Set current cell to 2
+				}
+			}
 			if (!isStillInSameCell && !nextPositionCheck) {
 				console.log("");
 				let currentDirectionRads = nextSpritePosition.spriteDirection * (Math.PI / 180);
@@ -664,23 +675,36 @@ export const createObject = async (_pathToGltf, _x, _z, _scale) => {
     return geometry;
 };
 
+const addObjectToScene = async (pathToGltf, x, z, scale) => {
+    try {
+        const sprite = await createObject(pathToGltf, x, z, scale);
+        scene.add(sprite);
+        const velocity = new THREE.Vector3(Math.cos(spriteInitialRadians), 0, Math.sin(spriteInitialRadians)).multiplyScalar(spriteVelocityMultiplier);
+        animateSpriteControl(sprite, mazeArray, mazeGridSize, velocity, spriteVelocityMultiplier, spriteVelocityDamper);
+    } catch (error) {
+        console.error('Error loading model:', error);
+    }
+};
+
 export const iniGridArrayScene = async (mountRef) => {
     [mazeGridFloor, mazeArray] = createMazeGrid(mazeGridSize, 0.001, mazeGridSize);
     //scene.add(new THREE.AxesHelper(10));
+	//scene.add(createMazeArrayLabels(mazeGridSize));
     scene.add(createGridHelper());
     scene.add(mazeGridFloor);
     scene.add(sceneLightingSetup());
-    //scene.add(createMazeArrayLabels(mazeGridSize));
+    
     sceneCamera.position.set(20, 20, 20);
     sceneLoadListeners();
     selectionHighlighter = createSelectionHighlighter();
-    const velocity = new THREE.Vector3(Math.cos(spriteInitialRadians), 0, Math.sin(spriteInitialRadians)).multiplyScalar(spriteVelocityMultiplier);
 
-    //const modelPath = '/sprites/truck.glb';
-	const modelPath = '/sprites/sillybob.glb'; 
-	const sprite = await createObject(modelPath, 0, 0, 1);
-	scene.add(sprite);
-	animateSpriteControl(sprite, mazeArray, mazeGridSize, velocity, spriteVelocityMultiplier, spriteVelocityDamper);
+    await addObjectToScene('/sprites/sillybob.glb', 0, 0, 1); 
+	await addObjectToScene('/sprites/sillybob.glb', 5, 5, 1);
+	await addObjectToScene( '/sprites/sillybob.glb', -5, -5, 1 );
+	await addObjectToScene( '/sprites/sillybob.glb', -5, 0, 1 );
+	await addObjectToScene( '/sprites/sillybob.glb', 0, 5, 1 );
+	await addObjectToScene( '/sprites/sillybob.glb', 3, 3, 1 );
+	await addObjectToScene( '/sprites/sillybob.glb', -3, -3, 1 );
 
     const renderer = sceneWebGLRenderer(mountRef);
     mountRef.current.appendChild(renderer.domElement);
